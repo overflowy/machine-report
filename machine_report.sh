@@ -136,10 +136,12 @@ BAR_OFF="${MR_BAR_OFF:-▯}"
 VAL_W=$((WIDTH - LABEL_W - 7)) # "│ " + label + " │ " + value + " │"
 
 # Make sure ${#str} counts characters, not bytes, so box drawing lines up.
+# `locale -a` spells the codeset inconsistently (C.UTF-8 vs C.utf8), so compare loosely.
 _probe="$BAR_ON"
 if [ "${#_probe}" -ne 1 ]; then
+    _locales=$(locale -a 2>/dev/null | tr -d '-' | tr '[:upper:]' '[:lower:]')
     for loc in C.UTF-8 en_US.UTF-8; do
-        if locale -a 2>/dev/null | grep -qx "$loc"; then
+        if printf '%s\n' "$_locales" | grep -qx "$(printf '%s' "$loc" | tr -d '-' | tr '[:upper:]' '[:lower:]')"; then
             export LC_ALL="$loc"
             [ "${#_probe}" -eq 1 ] && break
         fi
@@ -255,7 +257,7 @@ relative() { # seconds -> "3d 2h" / "2h 15m" / "34m"
 
 last_login() { # previous login for the current user, skipping the live session
     local rec date host tty ts diff rel
-    rec=$(last -n 5 "$USER" 2>/dev/null | awk -v u="$USER" '
+    rec=$(last -n 5 "$user" 2>/dev/null | awk -v u="$user" '
         $1 != u { next }
         { lines[++n] = $0; if (n == 2) exit }
         END {
@@ -298,7 +300,7 @@ last_login() { # previous login for the current user, skipping the live session
 os_kernel="$(uname -sr) $(uname -m)"
 short_host=$(hostname -s 2>/dev/null || uname -n)
 fqdn=$(hostname -f 2>/dev/null || printf '%s' "$short_host")
-user="$USER"
+user="${USER:-$(id -un)}" # USER is unset in containers and cron
 now=$(date '+%Y-%m-%d %H:%M %Z')
 
 case "$(uname -s)" in
@@ -363,8 +365,13 @@ Linux)
 
     uptime_s=$(awk '{ printf "%d", $1 }' /proc/uptime)
 
-    cpu_model=$(lscpu 2>/dev/null | awk -F': *' '/^Model name/ { print $2; exit }')
+    cpu_model=$(lscpu 2>/dev/null | awk -F': *' '/^Model name/ && $2 != "-" { print $2; exit }')
     [ -z "$cpu_model" ] && cpu_model=$(awk -F': ' '/model name/ { print $2; exit }' /proc/cpuinfo)
+    # ARM VMs often expose no model name at all; fall back to vendor + architecture.
+    if [ -z "$cpu_model" ]; then
+        cpu_vendor=$(lscpu 2>/dev/null | awk -F': *' '/^Vendor ID/ { print $2; exit }')
+        cpu_model="${cpu_vendor:+$cpu_vendor }$(uname -m)"
+    fi
     cpu_logical=$(nproc --all 2>/dev/null || getconf _NPROCESSORS_ONLN)
     cpu_physical=$(lscpu 2>/dev/null | awk -F': *' '
         /^Core\(s\) per socket/ { c = $2 } /^Socket\(s\)/ { s = $2 } END { if (c && s) print c * s }')
