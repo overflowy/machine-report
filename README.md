@@ -2,6 +2,8 @@
 
 A compact one-screen summary of the machine you just logged into. Single bash script, no dependencies beyond what macOS and Linux ship with.
 
+<img width="1319" height="920" alt="hello" src="https://github.com/user-attachments/assets/048714fc-a736-4671-818c-dedd6c8a343c" />
+
 Bars turn yellow at 70% and red at 90%. Load is the 1 minute average as a share of logical cores, with the 1, 5 and 15 minute values alongside.
 
 ## Install
@@ -58,4 +60,4 @@ Colour is switched off automatically when output is not a terminal.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT
