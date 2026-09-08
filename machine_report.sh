@@ -1,12 +1,108 @@
 #!/usr/bin/env bash
 # Machine report: a compact one-screen summary of the host.
-
-# Environment overrides:
-#   MR_TITLE   header text            (default: MACHINE REPORT)
-#   MR_WIDTH   total box width        (default: 64)
-#   NO_COLOR   disable colour output
+# Run with --help for options.
 
 set -u
+
+MARKER="# machine_report"                   # tags the line --install adds to the shell rc file
+LINE_RE="^\\[ -t 1 \\] && \".*\" $MARKER\$" # matches only that exact line shape, anywhere the script lives
+
+usage() {
+    cat <<EOF
+Usage: ${0##*/} [--install | --uninstall]
+
+Print a compact one-screen summary of this machine.
+
+Options:
+  --install     Run the report at the start of every interactive shell
+                (adds one line to your shell's rc file)
+  --uninstall   Remove the line added by --install
+  -h, --help    Show this help
+
+Environment:
+  MR_TITLE      header text            (default: MACHINE REPORT)
+  MR_WIDTH      total box width        (default: 64)
+  MR_BAR_ON     filled bar glyph       (default: ▮)
+  MR_BAR_OFF    empty bar glyph        (default: ▯)
+  NO_COLOR      disable colour output
+EOF
+}
+
+rc_file() { # startup file for the user's login shell
+    case "${SHELL##*/}" in
+    zsh) printf '%s' "${ZDOTDIR:-$HOME}/.zshrc" ;;
+    bash)
+        if [ "$(uname -s)" = Darwin ]; then printf '%s' "$HOME/.bash_profile"; else printf '%s' "$HOME/.bashrc"; fi
+        ;;
+    *)
+        printf 'error: unsupported shell "%s" (expected bash or zsh)\n' "${SHELL:-unset}" >&2
+        printf 'Add this line to your shell startup file by hand:\n  [ -t 1 ] && "%s"\n' "$(self_path)" >&2
+        return 1
+        ;;
+    esac
+}
+
+self_path() { # absolute path of this script
+    printf '%s/%s' "$(cd "$(dirname "$0")" && pwd -P)" "${0##*/}"
+}
+
+install_rc() {
+    local rc line
+    rc=$(rc_file) || exit 1
+    line="[ -t 1 ] && \"$(self_path)\" $MARKER"
+    if [ -f "$rc" ] && grep -q "$LINE_RE" "$rc"; then
+        printf 'Already installed in %s\n' "$rc" >&2
+        return 0
+    fi
+    # Make sure we start on a fresh line without adding a blank one.
+    if [ -s "$rc" ] && [ -n "$(tail -c 1 "$rc")" ]; then printf '\n' >>"$rc"; fi
+    printf '%s\n' "$line" >>"$rc" || {
+        printf 'error: could not write to %s\n' "$rc" >&2
+        exit 1
+    }
+    printf 'Added to %s:\n  %s\nOpen a new shell to see it, or run: source %s\n' "$rc" "$line" "$rc" >&2
+}
+
+uninstall_rc() {
+    local rc tmp
+    rc=$(rc_file) || exit 1
+    if ! [ -f "$rc" ] || ! grep -q "$LINE_RE" "$rc"; then
+        printf 'Nothing to remove: not installed in %s\n' "$rc" >&2
+        return 0
+    fi
+    # Filter into a temp file, then write back through the rc path so a
+    # symlinked rc (dotfile managers) stays a symlink. Keep the temp copy if
+    # the write-back fails, since by then the rc has been truncated.
+    tmp=$(mktemp) || exit 1
+    grep -v "$LINE_RE" "$rc" >"$tmp" # exits 1 when nothing is left, which is fine
+    if ! cat "$tmp" >"$rc"; then
+        printf 'error: could not write %s; your filtered rc is saved at %s\n' "$rc" "$tmp" >&2
+        exit 1
+    fi
+    rm -f "$tmp"
+    printf 'Removed from %s\n' "$rc" >&2
+}
+
+case "${1:-}" in
+"") ;;
+--install)
+    install_rc
+    exit
+    ;;
+--uninstall)
+    uninstall_rc
+    exit
+    ;;
+-h | --help)
+    usage
+    exit
+    ;;
+*)
+    printf 'error: unknown option "%s"\n\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
 
 TITLE="${MR_TITLE:-MACHINE REPORT}"
 WIDTH="${MR_WIDTH:-64}"
