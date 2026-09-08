@@ -8,14 +8,11 @@ Bars turn yellow at 70% and red at 90%. Load is the 1 minute average as a share 
 
 ## Install
 
-Downloads the script to `~/.local/bin/machine_report` and adds one line to your shell rc file (`~/.zshrc`, or `~/.bashrc` / `~/.bash_profile` for bash) so it runs at the start of every interactive shell:
-
 ```sh
-mkdir -p ~/.local/bin \
-  && curl -fsSL https://raw.githubusercontent.com/overflowy/machine-report/main/machine_report.sh -o ~/.local/bin/machine_report \
-  && chmod +x ~/.local/bin/machine_report \
-  && ~/.local/bin/machine_report --install
+curl -fsSL https://raw.githubusercontent.com/overflowy/machine-report/main/install.sh | bash
 ```
+
+This puts the script at `~/.local/bin/machine_report` and adds one line to your shell rc file (`~/.zshrc`, or `~/.bashrc` / `~/.bash_profile` for bash) so it runs at the start of every interactive shell. Rerun it to update. `MR_INSTALL_DIR` changes the install directory, `MR_VERSION` pins a tag (for example `MR_VERSION=v1.0.0`).
 
 To try it once without installing anything:
 
@@ -25,30 +22,23 @@ bash <(curl -fsSL https://raw.githubusercontent.com/overflowy/machine-report/mai
 
 ## Uninstall
 
-Removes the installed copy and the rc line, nothing else:
+Removes the installed script and the rc line, nothing else:
 
 ```sh
-~/.local/bin/machine_report --uninstall
+curl -fsSL https://raw.githubusercontent.com/overflowy/machine-report/main/install.sh | bash -s -- --uninstall
 ```
 
 ## Options
 
 ```
-Usage: machine_report [--install | --uninstall]
-
-Options:
-  --install     Copy this script to ~/.local/bin/machine_report
-                and run it at the start of every interactive shell
-  --uninstall   Remove the installed copy and the rc line
-  -h, --help    Show this help
+Usage: machine_report [-h | --help]
 
 Environment:
-  MR_INSTALL_DIR  where --install puts the script (default: ~/.local/bin)
-  MR_TITLE        header text            (default: MACHINE REPORT)
-  MR_WIDTH        total box width        (default: 64)
-  MR_BAR_ON       filled bar glyph       (default: ▮)
-  MR_BAR_OFF      empty bar glyph        (default: ▯)
-  NO_COLOR        disable colour output
+  MR_TITLE     header text            (default: MACHINE REPORT)
+  MR_WIDTH     total box width        (default: 64)
+  MR_BAR_ON    filled bar glyph       (default: ▮)
+  MR_BAR_OFF   empty bar glyph        (default: ▯)
+  NO_COLOR     disable colour output
 ```
 
 Colour is switched off automatically when output is not a terminal.
